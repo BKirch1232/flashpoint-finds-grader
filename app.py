@@ -288,7 +288,6 @@ def generateEbayDescription():
     is_key = st.session_state.comic_data.get("keyLevel", "") != "Collectible Comic Book"
     is_key_heading = "KEY ISSUE UNLOCKED!" if is_key else "COLLECTIBLE TIMELINE ADDITION!"
     
-    # Resolved to Python .upper() method
     grade_sub_label = f"({format_val.upper()})"
 
     id_paragraph_text = f"Presenting <em>{title} {issue_str}</em>, officially published by {publisher} in {year}. This copy is formatted as a premium {format_val} {type_val} from the classic {era_val}. Features artwork by {artist}. Originally retailing for {price}. This serves as an essential, high-data-grade reference piece for dedicated collectors and timeline curators tracking core publisher canon."
@@ -351,7 +350,7 @@ def generateEbayDescription():
                     <div style="background: #00f2ff; width: 4px; height: 24px; margin-right: 12px; flex-shrink: 0;"></div>
                     <h2 class="fp-h2" style="font-family: 'Arial Black', Gadget, sans-serif; font-size: 18px; color: #00f2ff; text-transform: uppercase; margin: 0; letter-spacing: 3px;">Lore Transmission</h2>
                 </div>
-                <p class="fp-p" style="text-align: left; font-size: 17px; margin: 0; color: #ffffff; border-left: 1px solid rgba(0, 242, 255, 0.3); padding-left: 15px;">
+                <p class="fp-p" style="text-align: left; font-size: 17px; margin: 0 0 25px 0; color: #ffffff; border-left: 1px solid rgba(0, 242, 255, 0.3); padding-left: 15px;">
                     {lore_paragraph_text}
                 </p>
             </div>
