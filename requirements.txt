@@ -1,3 +1,1 @@
-streamlit>=1.35.0
-google-generativeai>=0.5.4
-Pillow>=10.3.0
+streamlit>=1.35.0google-generativeai>=0.8.6Pillow>=10.3.0
