@@ -288,7 +288,8 @@ def generateEbayDescription():
     is_key = st.session_state.comic_data.get("keyLevel", "") != "Collectible Comic Book"
     is_key_heading = "KEY ISSUE UNLOCKED!" if is_key else "COLLECTIBLE TIMELINE ADDITION!"
     
-    grade_sub_label = f"({format_val.toUpperCase()})"
+    # Resolved to Python .upper() method instead of JS .toUpperCase()
+    grade_sub_label = f"({format_val.upper()})"
 
     id_paragraph_text = f"Presenting <em>{title} {issue_str}</em>, officially published by {publisher} in {year}. This copy is formatted as a premium {format_val} {type_val} from the classic {era_val}. Features artwork by {artist}. Originally retailing for {price}. This serves as an essential, high-data-grade reference piece for dedicated collectors and timeline curators tracking core publisher canon."
 
@@ -424,71 +425,115 @@ def generateEbayDescription():
 </div>"""
 
 # ==========================================
-# 5. SESSION STATE MANAGEMENT
+# 5. SIDEBAR BRANDING & CREDENTIALS
 # ==========================================
-if "comic_data" not in st.session_state:
-    st.session_state.comic_data = {
-        "title": "Toyman Fleer Brilliants",
-        "issue": "73",
-        "publisher": "Upper Deck",
-        "year": "2025",
-        "artist": "Fleer Art Crew",
-        "price": "$5.95",
-        "keyLevel": "Iconic Cover / Variant",
-        "significance": "Gorgeous #73 Toyman base foil card from the lightning-fast 2025 Upper Deck Fleer Superman collection. High-gloss holographic board.",
-        "trivia": "This artifact highlights Winslow Schott, the Toyman! A brilliant but twisted inventor who uses weaponized toys.",
-        "impact": 7,
-        "cover": 9,
-        "divergence": 6,
-        "investmentTier": "Emerging Classic",
-        "arbitrage": "1.5x Raw Card Value",
-        "liquidity": "Strong B",
-        "horizon": "Strategic Accumulate",
-        "spine": 0.0,
-        "spineroll": 0.0,
-        "splits": 0.0,
-        "gloss": 0.0,
-        "corners": 0.0,
-        "stains": 0.0,
-        "writing": 0.0,
-        "staples": 0.0,
-        "detachment": 0.0,
-        "pagecolor": 0.0,
-        "missing": 0.0,
-        "character": "Toyman, Superman",
-        "team": "Superman Rogues Gallery",
-        "universe": "DC Universe",
-        "genre": "Superheroes",
-        "story": "Fleer Brilliants Superman Foil Set",
-        "writer": "Winslow Schott",
-        "format": "Single Issue",
-        "type": "Trading Card",
-        "tradition": "US Comics",
-        "variant": "Base Foil Variant",
-        "style": "Color",
-        "language": "English",
-        "country": "United States",
-        "audience": "General Audience",
-        "features": "Holographic Foil Board, Near Mint Condition",
-        "upc": "Does Not Apply",
-        "grader": "Flashpoint Finds",
-        "cert": "FF73902025",
-        "signed": "No",
-        "signedby": "",
-        "auth": "None",
-        "authnum": "",
-        "inscribed": "No",
-        "personalized": "No",
-        "saleunit": "Single Unit",
-        "convention": "None",
-        "unitqty": "1",
-        "unittype": "Unit",
-        "prop65": "No Warning Applicable",
-        "notes": "Pack-fresh modern foil card exhibiting high surface gloss, sharp corners, and clean edges."
-    }
+with st.sidebar:
+    st.markdown(logo_svg_html, unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; margin-top: -10px;'><span style='font-family: \"Oswald\", sans-serif; font-size: 16px; font-weight: bold; color: #ffffff; letter-spacing: 2px;'>⚡ FLASHPOINT FINDS</span></div>", unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("### ⚡ API Authentication Portal")
+    
+    # Check Streamlit secrets first, else fallback to manual input
+    secret_key = st.secrets.get("GEMINI_API_KEY", "")
+    if secret_key:
+        st.success("API Key Loaded from Chrono-Secrets!")
+        api_key = secret_key
+    else:
+        api_key = st.text_input("Enter Gemini API Key", type="password", help="Input your Google AI Studio key to enable Web Chrono-Pulls.")
+        
+    st.markdown("---")
+    st.markdown("### 📝 Quick Calibration Presets")
+    if st.button("Set Barry Allen Signature"):
+        st.session_state.comic_data["signed"] = "Yes"
+        st.session_state.comic_data["signedby"] = "Carmine Infantino"
+        st.session_state.comic_data["auth"] = "PSA/DNA"
+        st.session_state.comic_data["authnum"] = "FF-BALLEN-842"
+        st.rerun()
 
 # ==========================================
-# 6. APP MAIN GRID LAYOUT
+# 6. CHRONO-ENGINE API RUNNERS
+# ==========================================
+def call_gemini_with_backoff(prompt, images=None):
+    if not api_key:
+        st.warning("Please configure your Gemini API Key in the sidebar or secrets manager to execute automated runs.")
+        return None
+    
+    genai.configure(api_key=api_key)
+    # Using the production stable 'gemini-1.5-flash' model
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    # Configure precise JSON enforcement
+    generation_config = {
+        "response_mime_type": "application/json",
+        "response_schema": {
+            "type": "OBJECT",
+            "properties": {
+                "title": {"type": "STRING"},
+                "issue": {"type": "STRING"},
+                "publisher": {"type": "STRING"},
+                "year": {"type": "STRING"},
+                "artist": {"type": "STRING"},
+                "price": {"type": "STRING"},
+                "keyLevel": {"type": "STRING"},
+                "significance": {"type": "STRING"},
+                "trivia": {"type": "STRING"},
+                "character": {"type": "STRING"},
+                "team": {"type": "STRING"},
+                "universe": {"type": "STRING"},
+                "genre": {"type": "STRING"},
+                "story": {"type": "STRING"},
+                "writer": {"type": "STRING"},
+                "variant": {"type": "STRING"},
+                "features": {"type": "STRING"},
+                "story_impact": {"type": "NUMBER"},
+                "cover_desirability": {"type": "NUMBER"},
+                "timeline_divergence": {"type": "NUMBER"},
+                "investmentTier": {"type": "STRING"},
+                "arbitrage": {"type": "STRING"},
+                "liquidity": {"type": "STRING"},
+                "horizon": {"type": "STRING"},
+                "spine": {"type": "NUMBER"},
+                "spineroll": {"type": "NUMBER"},
+                "splits": {"type": "NUMBER"},
+                "gloss": {"type": "NUMBER"},
+                "corners": {"type": "NUMBER"},
+                "stains": {"type": "NUMBER"},
+                "writing": {"type": "NUMBER"},
+                "staples": {"type": "NUMBER"},
+                "detachment": {"type": "NUMBER"},
+                "pagecolor": {"type": "NUMBER"},
+                "missing": {"type": "NUMBER"}
+            },
+            "required": ["title", "issue", "publisher", "year"]
+        }
+    }
+
+    # Assemble multimodal content list
+    contents = [prompt]
+    if images:
+        for img in images:
+            contents.append({
+                "mime_type": img["mime_type"],
+                "data": img["data"]
+            })
+
+    # 5x Exponential backoff loop
+    delay = 1.0
+    for attempt in range(5):
+        try:
+            response = model.generate_content(contents, generation_config=generation_config)
+            return json.loads(response.text)
+        except Exception as e:
+            if attempt == 4:
+                st.error(f"Timeline Engine error: {str(e)}")
+                return None
+            time.sleep(delay + random.uniform(0.1, 0.5))
+            delay *= 2.0
+    return None
+
+# ==========================================
+# 7. APP MAIN GRID LAYOUT
 # ==========================================
 st.title("⚡ Flashpoint Finds Portfolio & Grader")
 
