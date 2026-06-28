@@ -453,82 +453,97 @@ with st.sidebar:
 # ==========================================
 # 6. CHRONO-ENGINE API RUNNERS
 # ==========================================
-def call_gemini_with_backoff(prompt, images=None):
+def call_gemini_with_backoff(prompt, images=None, google_search=False):
     if not api_key:
         st.warning("Please configure your Gemini API Key in the sidebar or secrets manager to execute automated runs.")
         return None
     
-    genai.configure(api_key=api_key)
-    # Using the production stable 'gemini-1.5-flash' model
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Direct HTTP implementation: no native Python SDK imports or initialization needed!
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
     
-    # Configure precise JSON enforcement
-    generation_config = {
-        "response_mime_type": "application/json",
-        "response_schema": {
-            "type": "OBJECT",
-            "properties": {
-                "title": {"type": "STRING"},
-                "issue": {"type": "STRING"},
-                "publisher": {"type": "STRING"},
-                "year": {"type": "STRING"},
-                "artist": {"type": "STRING"},
-                "price": {"type": "STRING"},
-                "keyLevel": {"type": "STRING"},
-                "significance": {"type": "STRING"},
-                "trivia": {"type": "STRING"},
-                "character": {"type": "STRING"},
-                "team": {"type": "STRING"},
-                "universe": {"type": "STRING"},
-                "genre": {"type": "STRING"},
-                "story": {"type": "STRING"},
-                "writer": {"type": "STRING"},
-                "variant": {"type": "STRING"},
-                "features": {"type": "STRING"},
-                "story_impact": {"type": "NUMBER"},
-                "cover_desirability": {"type": "NUMBER"},
-                "timeline_divergence": {"type": "NUMBER"},
-                "investmentTier": {"type": "STRING"},
-                "arbitrage": {"type": "STRING"},
-                "liquidity": {"type": "STRING"},
-                "horizon": {"type": "STRING"},
-                "spine": {"type": "NUMBER"},
-                "spineroll": {"type": "NUMBER"},
-                "splits": {"type": "NUMBER"},
-                "gloss": {"type": "NUMBER"},
-                "corners": {"type": "NUMBER"},
-                "stains": {"type": "NUMBER"},
-                "writing": {"type": "NUMBER"},
-                "staples": {"type": "NUMBER"},
-                "detachment": {"type": "NUMBER"},
-                "pagecolor": {"type": "NUMBER"},
-                "missing": {"type": "NUMBER"}
-            },
-            "required": ["title", "issue", "publisher", "year"]
-        }
-    }
-
-    # Assemble multimodal content list
-    contents = [prompt]
+    parts = [{"text": prompt}]
     if images:
         for img in images:
-            contents.append({
-                "mime_type": img["mime_type"],
-                "data": img["data"]
+            parts.append({
+                "inlineData": {
+                    "mimeType": img["mime_type"],
+                    "data": base64.b64encode(img["data"]).decode("utf-8")
+                }
             })
-
-    # 5x Exponential backoff loop
+            
+    payload = {
+        "contents": [{
+            "parts": parts
+        }],
+        "generationConfig": {
+            "responseMimeType": "application/json",
+            "responseSchema": {
+                "type": "OBJECT",
+                "properties": {
+                    "title": {"type": "STRING"},
+                    "issue": {"type": "STRING"},
+                    "publisher": {"type": "STRING"},
+                    "year": {"type": "STRING"},
+                    "artist": {"type": "STRING"},
+                    "price": {"type": "STRING"},
+                    "keyLevel": {"type": "STRING"},
+                    "significance": {"type": "STRING"},
+                    "trivia": {"type": "STRING"},
+                    "character": {"type": "STRING"},
+                    "team": {"type": "STRING"},
+                    "universe": {"type": "STRING"},
+                    "genre": {"type": "STRING"},
+                    "story": {"type": "STRING"},
+                    "writer": {"type": "STRING"},
+                    "variant": {"type": "STRING"},
+                    "features": {"type": "STRING"},
+                    "story_impact": {"type": "NUMBER"},
+                    "cover_desirability": {"type": "NUMBER"},
+                    "timeline_divergence": {"type": "NUMBER"},
+                    "investmentTier": {"type": "STRING"},
+                    "arbitrage": {"type": "STRING"},
+                    "liquidity": {"type": "STRING"},
+                    "horizon": {"type": "STRING"},
+                    "spine": {"type": "NUMBER"},
+                    "spineroll": {"type": "NUMBER"},
+                    "splits": {"type": "NUMBER"},
+                    "gloss": {"type": "NUMBER"},
+                    "corners": {"type": "NUMBER"},
+                    "stains": {"type": "NUMBER"},
+                    "writing": {"type": "NUMBER"},
+                    "staples": {"type": "NUMBER"},
+                    "detachment": {"type": "NUMBER"},
+                    "pagecolor": {"type": "NUMBER"},
+                    "missing": {"type": "NUMBER"}
+                },
+                "required": ["title", "issue", "publisher", "year"]
+            }
+        }
+    }
+    
+    if google_search:
+        payload["tools"] = [{"google_search": {}}]
+        
     delay = 1.0
     for attempt in range(5):
         try:
-            response = model.generate_content(contents, generation_config=generation_config)
-            return json.loads(response.text)
+            response = requests.post(url, headers=headers, json=payload, timeout=45)
+            if response.status_code == 200:
+                res_json = response.json()
+                text_response = res_json["candidates"][0]["content"]["parts"][0]["text"]
+                return json.loads(text_response)
+            elif response.status_code in [429, 500, 502, 503, 504]:
+                pass # Trigger next backoff retry iteration
+            else:
+                st.error(f"API Error ({response.status_code}): {response.text}")
+                return None
         except Exception as e:
             if attempt == 4:
-                st.error(f"Timeline Engine error: {str(e)}")
+                st.error(f"Timeline Engine connection timeout: {str(e)}")
                 return None
-            time.sleep(delay + random.uniform(0.1, 0.5))
-            delay *= 2.0
+        time.sleep(delay + random.uniform(0.1, 0.5))
+        delay *= 2.0
     return None
 
 # ==========================================
@@ -554,7 +569,7 @@ with left_col:
             if web_query:
                 with st.spinner("Querying Comic Database Records..."):
                     prompt = f"Perform a grounded web search for the comic book: '{web_query}'. Retrieve publishing details, creator names, variant configurations, key issue importance indicators, LCOG trivia, and financial diagnostics."
-                    data = call_gemini_with_backoff(prompt)
+                    data = call_gemini_with_backoff(prompt, google_search=True)
                     if data:
                         st.session_state.comic_data.update(data)
                         st.success("⚡ System synchronized with grounded comic database assets!")
