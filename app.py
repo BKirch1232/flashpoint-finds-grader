@@ -70,7 +70,71 @@ logo_svg_html = """
 """
 
 # ==========================================
-# 2. HELPER TIMELINE UTILITIES
+# 2. SESSION STATE MANAGEMENT
+# ==========================================
+if "comic_data" not in st.session_state:
+    st.session_state.comic_data = {
+        "title": "Toyman Fleer Brilliants",
+        "issue": "73",
+        "publisher": "Upper Deck",
+        "year": "2025",
+        "artist": "Fleer Art Crew",
+        "price": "$5.95",
+        "keyLevel": "Iconic Cover / Variant",
+        "significance": "Gorgeous #73 Toyman base foil card from the lightning-fast 2025 Upper Deck Fleer Superman collection. High-gloss holographic board.",
+        "trivia": "This artifact highlights Winslow Schott, the Toyman! A brilliant but twisted inventor who uses weaponized toys.",
+        "impact": 7,
+        "cover": 9,
+        "divergence": 6,
+        "investmentTier": "Emerging Classic",
+        "arbitrage": "1.5x Raw Card Value",
+        "liquidity": "Strong B",
+        "horizon": "Strategic Accumulate",
+        "spine": 0.0,
+        "spineroll": 0.0,
+        "splits": 0.0,
+        "gloss": 0.0,
+        "corners": 0.0,
+        "stains": 0.0,
+        "writing": 0.0,
+        "staples": 0.0,
+        "detachment": 0.0,
+        "pagecolor": 0.0,
+        "missing": 0.0,
+        "character": "Toyman, Superman",
+        "team": "Superman Rogues Gallery",
+        "universe": "DC Universe",
+        "genre": "Superheroes",
+        "story": "Fleer Brilliants Superman Foil Set",
+        "writer": "Winslow Schott",
+        "format": "Single Issue",
+        "type": "Trading Card",
+        "tradition": "US Comics",
+        "variant": "Base Foil Variant",
+        "style": "Color",
+        "language": "English",
+        "country": "United States",
+        "audience": "General Audience",
+        "features": "Holographic Foil Board, Near Mint Condition",
+        "upc": "Does Not Apply",
+        "grader": "Flashpoint Finds",
+        "cert": "FF73902025",
+        "signed": "No",
+        "signedby": "",
+        "auth": "None",
+        "authnum": "",
+        "inscribed": "No",
+        "personalized": "No",
+        "saleunit": "Single Unit",
+        "convention": "None",
+        "unitqty": "1",
+        "unittype": "Unit",
+        "prop65": "No Warning Applicable",
+        "notes": "Pack-fresh modern foil card exhibiting high surface gloss, sharp corners, and clean edges."
+    }
+
+# ==========================================
+# 3. HELPER TIMELINE UTILITIES
 # ==========================================
 def autoComputeEra(year_str):
     try:
@@ -110,7 +174,7 @@ def autoGenerateHistoricalCapsule(year_str):
         return f"In {y}, the Modern Age of comics was establishing digital printing, premium glossy cardstock covers, and limited variant tier structures. Highly desired for modern collector census metrics."
 
 # ==========================================
-# 3. EBAY FIELDS GENERATORS
+# 4. EBAY FIELDS GENERATORS
 # ==========================================
 def generateEbayTitle():
     title = (st.session_state.get("comic_data", {}).get("title", "")).upper()
@@ -121,7 +185,7 @@ def generateEbayTitle():
     
     grade_num = st.session_state.get("comic_data", {}).get("final_grade_num", 9.0)
     grade_str = st.session_state.get("comic_data", {}).get("final_grade_str", "Very Fine/Near Mint")
-    grade_part = grade_str.split('(')[0].trim().upper() + " " + str(grade_num)
+    grade_part = grade_str.split('(')[0].strip().upper() + " " + str(grade_num)
     
     character = (st.session_state.get("comic_data", {}).get("character", "")).upper()
     publisher = (st.session_state.get("comic_data", {}).get("publisher", "")).upper()
@@ -158,7 +222,7 @@ def generateEbayTitle():
 def getEbaySpecificsList():
     year_val = st.session_state.get("comic_data", {}).get("year", "N/A")
     grade_num = st.session_state.get("comic_data", {}).get("final_grade_num", 9.0)
-    grade_str = st.session_state.get("comic_data", {}).get("final_grade_str", "Very Fine/Near Mint").split('(')[0].trim()
+    grade_str = st.session_state.get("comic_data", {}).get("final_grade_str", "Very Fine/Near Mint").split('(')[0].strip()
     
     return [
         { "name": "UPC", "value": st.session_state.get("comic_data", {}).get("upc", "Does Not Apply") or "Does Not Apply" },
@@ -210,7 +274,7 @@ def generateEbayDescription():
     price = st.session_state.comic_data.get("price", "")
     
     grade_num = st.session_state.comic_data.get("final_grade_num", 9.0)
-    grade_str = st.session_state.comic_data.get("final_grade_str", "Very Fine/Near Mint").split('(')[0].trim()
+    grade_str = st.session_state.comic_data.get("final_grade_str", "Very Fine/Near Mint").split('(')[0].strip()
     page_quality = st.session_state.comic_data.get("page_quality", "White Pages")
     
     format_val = st.session_state.comic_data.get("format", "Single Issue")
@@ -476,71 +540,11 @@ with left_col:
                         images_to_send.append({"mime_type": back_file.type, "data": back_bytes})
 
                     prompt = "Examine the covers of this comic. Extract the title, issue number, publisher, year, artist, variant type, visible cover wear deductions, and estimate historical and collection significance."
-                    # Use production stable gemini-1.5-flash
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    
-                    generation_config = {
-                        "response_mime_type": "application/json",
-                        "response_schema": {
-                            "type": "OBJECT",
-                            "properties": {
-                                "title": {"type": "STRING"},
-                                "issue": {"type": "STRING"},
-                                "publisher": {"type": "STRING"},
-                                "year": {"type": "STRING"},
-                                "artist": {"type": "STRING"},
-                                "price": {"type": "STRING"},
-                                "keyLevel": {"type": "STRING"},
-                                "significance": {"type": "STRING"},
-                                "trivia": {"type": "STRING"},
-                                "character": {"type": "STRING"},
-                                "team": {"type": "STRING"},
-                                "universe": {"type": "STRING"},
-                                "genre": {"type": "STRING"},
-                                "story": {"type": "STRING"},
-                                "writer": {"type": "STRING"},
-                                "variant": {"type": "STRING"},
-                                "features": {"type": "STRING"},
-                                "story_impact": {"type": "NUMBER"},
-                                "cover_desirability": {"type": "NUMBER"},
-                                "timeline_divergence": {"type": "NUMBER"},
-                                "investmentTier": {"type": "STRING"},
-                                "arbitrage": {"type": "STRING"},
-                                "liquidity": {"type": "STRING"},
-                                "horizon": {"type": "STRING"},
-                                "spine": {"type": "NUMBER"},
-                                "spineroll": {"type": "NUMBER"},
-                                "splits": {"type": "NUMBER"},
-                                "gloss": {"type": "NUMBER"},
-                                "corners": {"type": "NUMBER"},
-                                "stains": {"type": "NUMBER"},
-                                "writing": {"type": "NUMBER"},
-                                "staples": {"type": "NUMBER"},
-                                "detachment": {"type": "NUMBER"},
-                                "pagecolor": {"type": "NUMBER"},
-                                "missing": {"type": "NUMBER"}
-                            },
-                            "required": ["title", "issue", "publisher", "year"]
-                        }
-                    }
-
-                    contents = [prompt]
-                    for img in images_to_send:
-                        contents.append({
-                            "mime_type": img["mime_type"],
-                            "data": img["data"]
-                        })
-
-                    try:
-                        response = model.generate_content(contents, generation_config=generation_config)
-                        data = json.loads(response.text)
-                        if data:
-                            st.session_state.comic_data.update(data)
-                            st.success("⚡ Chrono-Scan Complete! Cover visual elements mapped to workspace.")
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Scanner Failure: {str(e)}")
+                    data = call_gemini_with_backoff(prompt, images=images_to_send)
+                    if data:
+                        st.session_state.comic_data.update(data)
+                        st.success("⚡ Chrono-Scan Complete! Cover visual elements mapped to workspace.")
+                        st.rerun()
             else:
                 st.error("Front Cover image is required to initiate visual scans.")
 
@@ -816,9 +820,10 @@ with right_col:
             <div style="margin-bottom:15px;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <h2 style="margin:0; font-size:20px; font-weight:bold; text-transform:uppercase;">{st.session_state.comic_data['title']}</h2>
-                    <span style="font-size:10px; font-weight:bold; background:rgba(255,193,7,0.15); border:1px solid rgba(255,193,7,0.3); color:#FFC107; padding:2px 6px; border-radius:4px;">{st.session_state.comic_data['investmentTier']}</span>
+                    <span id="card-front-asset-tag" style="font-size:8px; font-weight:bold; background:rgba(255,193,7,0.15); border:1px solid rgba(255,193,7,0.4); color:#FFC107; padding:2px 6px; border-radius:4px; text-transform:uppercase; letter-spacing:1px; flex-shrink:0;">{st.session_state.comic_data.get('investmentTier', 'Blue Chip Key')}</span>
                 </div>
-                <div style="font-size:12px; color:#aaa; margin-top:2px;">#{st.session_state.comic_data['issue']} &bull; DC Comics ({st.session_state.comic_data['year']})</div>
+                <div style="font-size:12px; color:#aaa; margin-top:2px;">#{st.session_state.comic_data['issue']} &bull; {st.session_state.comic_data['publisher']} ({st.session_state.comic_data['year']})</div>
+                <div style="font-size:9px; color:#555; font-weight:semibold; margin-top:2px;">Cover Art: {st.session_state.comic_data['artist']}</div>
             </div>
             
             <!-- Key Collector Sign -->
